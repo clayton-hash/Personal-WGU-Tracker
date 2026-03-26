@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WGU Progress Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0f12;--bg2:#13161b;--bg3:#1a1e25;--bg4:#21262f;
+  --border:#ffffff0f;--border2:#ffffff1a;--border3:#ffffff2a;
+  --text:#e8eaf0;--text2:#8892a0;--text3:#4a5568;
+  --accent:#00d4aa;--accent2:#0099ff;--accent3:#ff6b35;
+  --green:#00d4aa;--amber:#f59e0b;--red:#ef4444;--blue:#3b82f6;
+  --purple:#8b5cf6;
+  --r:8px;--r2:12px;--r3:16px;
+  --mono:'IBM Plex Mono',monospace;
+  --sans:'IBM Plex Sans',sans-serif;
+}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;line-height:1.6}
+.scanline{position:fixed;top:0;left:0;right:0;bottom:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);pointer-events:none;z-index:0}
+.wrap{max-width:900px;margin:0 auto;padding:32px 20px;position:relative;z-index:1}
+
+.header{margin-bottom:32px}
+.header-top{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px}
+.title-block h1{font-family:var(--mono);font-size:22px;font-weight:500;letter-spacing:-0.5px;color:var(--text)}
+.title-block p{font-size:12px;color:var(--text3);font-family:var(--mono);margin-top:2px}
+.header-actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{font-family:var(--mono);font-size:11px;font-weight:500;padding:6px 14px;border-radius:var(--r);border:0.5px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer;transition:all .15s;white-space:nowrap}
+.btn:hover{border-color:var(--border3);color:var(--text);background:var(--bg4)}
+.btn-accent{border-color:var(--accent);color:var(--accent);background:transparent}
+.btn-accent:hover{background:var(--accent);color:var(--bg)}
+
+.dashboard{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:24px}
+.stat-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--r2);padding:16px 18px}
+.stat-label{font-family:var(--mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.stat-value{font-family:var(--mono);font-size:28px;font-weight:500;color:var(--text);line-height:1}
+.stat-sub{font-size:11px;color:var(--text3);margin-top:4px}
+.stat-accent{color:var(--accent)}
+.stat-amber{color:var(--amber)}
+.stat-blue{color:var(--blue)}
+
+.overall-bar-wrap{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--r2);padding:18px 20px;margin-bottom:24px}
+.overall-bar-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.overall-bar-label{font-family:var(--mono);font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px}
+.overall-bar-pct{font-family:var(--mono);font-size:13px;color:var(--accent);font-weight:500}
+.bar-track{height:6px;background:var(--bg4);border-radius:3px;overflow:hidden}
+.bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .6s ease}
+.course-dots{display:flex;gap:4px;margin-top:10px;flex-wrap:wrap}
+.course-dot{width:8px;height:8px;border-radius:2px;background:var(--bg4);transition:background .3s}
+.course-dot.done{background:var(--accent)}
+.course-dot.active{background:var(--amber)}
+
+.current-highlight{background:var(--bg2);border:0.5px solid var(--accent);border-radius:var(--r2);padding:16px 20px;margin-bottom:24px;display:none}
+.current-highlight.visible{display:block}
+.current-tag{font-family:var(--mono);font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.current-name{font-size:15px;font-weight:500;margin-bottom:2px}
+.current-code{font-family:var(--mono);font-size:11px;color:var(--text3)}
+.current-meta{display:flex;gap:20px;margin-top:10px;flex-wrap:wrap}
+.current-meta-item{font-family:var(--mono);font-size:11px;color:var(--text2)}
+.current-meta-item span{color:var(--accent)}
+
+.section-header{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.section-title{font-family:var(--mono);font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px}
+.section-line{flex:1;height:0.5px;background:var(--border)}
+
+.course-list{display:flex;flex-direction:column;gap:8px}
+.course-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--r2);overflow:hidden;transition:border-color .2s}
+.course-card:hover{border-color:var(--border2)}
+.course-card.active-course{border-color:var(--accent)}
+.course-card.complete-course{opacity:.7}
+
+.card-header{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;user-select:none}
+.card-num{font-family:var(--mono);font-size:11px;color:var(--text3);min-width:24px}
+.card-info{flex:1;min-width:0}
+.card-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-code{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:1px}
+.card-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.badge{font-family:var(--mono);font-size:10px;font-weight:500;padding:3px 8px;border-radius:4px;white-space:nowrap}
+.badge-ns{background:#1a1e25;color:var(--text3);border:0.5px solid var(--border2)}
+.badge-ip{background:rgba(245,158,11,0.12);color:var(--amber);border:0.5px solid rgba(245,158,11,0.3)}
+.badge-done{background:rgba(0,212,170,0.1);color:var(--accent);border:0.5px solid rgba(0,212,170,0.25)}
+.badge-cert{background:rgba(139,92,246,0.12);color:var(--purple);border:0.5px solid rgba(139,92,246,0.3)}
+.card-days{font-family:var(--mono);font-size:11px;color:var(--text2);white-space:nowrap}
+.card-days.urgent{color:var(--red)}
+.card-days.soon{color:var(--amber)}
+.card-chevron{font-size:10px;color:var(--text3);transition:transform .2s;margin-left:4px}
+.card-chevron.open{transform:rotate(180deg)}
+.card-progress-bar{height:2px;background:var(--bg4)}
+.card-progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .4s}
+
+.card-body{padding:0 16px 16px;display:none}
+.card-body.open{display:block}
+.card-body-inner{border-top:0.5px solid var(--border);padding-top:14px}
+
+.card-dates{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.date-field label{font-family:var(--mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;display:block;margin-bottom:4px}
+.date-field input{width:100%;background:var(--bg3);border:0.5px solid var(--border2);border-radius:var(--r);padding:6px 10px;font-family:var(--mono);font-size:12px;color:var(--text);outline:none}
+.date-field input:focus{border-color:var(--accent)}
+.completion-date{font-family:var(--mono);font-size:11px;color:var(--accent);margin-top:4px}
+
+.milestones-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.milestones-label{font-family:var(--mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px}
+.add-milestone-btn{font-family:var(--mono);font-size:10px;color:var(--accent);background:none;border:none;cursor:pointer;padding:2px 0}
+.add-milestone-btn:hover{color:var(--text)}
+
+.milestone-list{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
+.milestone-item{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg3);border-radius:var(--r);border:0.5px solid var(--border)}
+.milestone-check{width:14px;height:14px;border-radius:3px;border:0.5px solid var(--border3);background:transparent;cursor:pointer;flex-shrink:0;appearance:none;-webkit-appearance:none;position:relative;transition:all .15s}
+.milestone-check:checked{background:var(--accent);border-color:var(--accent)}
+.milestone-check:checked::after{content:'✓';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:9px;color:var(--bg);font-weight:700}
+.milestone-text{flex:1;font-size:12px;color:var(--text2);min-width:0}
+.milestone-text.checked{text-decoration:line-through;color:var(--text3)}
+.milestone-edit{background:none;border:none;color:var(--text3);cursor:pointer;font-size:11px;padding:0 2px;opacity:0;transition:opacity .15s}
+.milestone-item:hover .milestone-edit{opacity:1}
+.milestone-edit:hover{color:var(--red)}
+
+.add-milestone-row{display:flex;gap:6px;margin-top:4px}
+.add-milestone-row input{flex:1;background:var(--bg3);border:0.5px solid var(--border2);border-radius:var(--r);padding:6px 10px;font-family:var(--sans);font-size:12px;color:var(--text);outline:none}
+.add-milestone-row input:focus{border-color:var(--accent)}
+.add-milestone-row input::placeholder{color:var(--text3)}
+.add-milestone-row .btn{padding:6px 12px}
+
+.card-notes{margin-top:12px}
+.notes-label{font-family:var(--mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;display:block}
+.notes-input{width:100%;background:var(--bg3);border:0.5px solid var(--border2);border-radius:var(--r);padding:8px 10px;font-family:var(--sans);font-size:12px;color:var(--text);outline:none;resize:vertical;min-height:60px;line-height:1.5}
+.notes-input:focus{border-color:var(--accent)}
+.notes-input::placeholder{color:var(--text3)}
+
+.card-actions{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
+.btn-small{font-size:10px;padding:5px 12px}
+
+.completed-section{margin-top:24px}
+
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:100;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--r3);padding:28px;max-width:440px;width:100%}
+.modal h2{font-family:var(--mono);font-size:16px;font-weight:500;margin-bottom:6px}
+.modal p{font-size:13px;color:var(--text2);margin-bottom:20px;line-height:1.6}
+.modal-field{margin-bottom:14px}
+.modal-field label{font-family:var(--mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;display:block;margin-bottom:5px}
+.modal-field input{width:100%;background:var(--bg3);border:0.5px solid var(--border2);border-radius:var(--r);padding:8px 12px;font-family:var(--mono);font-size:13px;color:var(--text);outline:none}
+.modal-field input:focus{border-color:var(--accent)}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
+
+.setup-screen{display:flex;align-items:center;justify-content:center;min-height:80vh}
+.setup-card{background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--r3);padding:36px;max-width:460px;width:100%;text-align:center}
+.setup-card .mono-tag{font-family:var(--mono);font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px}
+.setup-card h2{font-size:22px;font-weight:500;margin-bottom:8px}
+.setup-card p{font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:24px}
+.setup-field{text-align:left;margin-bottom:16px}
+.setup-field label{font-family:var(--mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;display:block;margin-bottom:5px}
+.setup-field input{width:100%;background:var(--bg3);border:0.5px solid var(--border2);border-radius:var(--r);padding:10px 14px;font-family:var(--mono);font-size:14px;color:var(--text);outline:none}
+.setup-field input:focus{border-color:var(--accent)}
+.btn-setup{width:100%;padding:12px;font-size:13px;margin-top:8px}
+
+.loading{text-align:center;padding:60px 20px;font-family:var(--mono);font-size:13px;color:var(--text3)}
+.loading-dot{display:inline-block;animation:blink 1.2s infinite}
+.loading-dot:nth-child(2){animation-delay:.2s}
+.loading-dot:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,80%,100%{opacity:0}40%{opacity:1}}
+
+.toast{position:fixed;bottom:24px;right:24px;background:var(--bg3);border:0.5px solid var(--accent);border-radius:var(--r);padding:10px 16px;font-family:var(--mono);font-size:12px;color:var(--accent);z-index:200;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.error{border-color:var(--red);color:var(--red)}
+
+.sync-indicator{font-family:var(--mono);font-size:10px;color:var(--text3);display:flex;align-items:center;gap:6px}
+.sync-dot{width:6px;height:6px;border-radius:50%;background:var(--accent)}
+.sync-dot.syncing{background:var(--amber);animation:pulse 1s infinite}
+.sync-dot.error{background:var(--red)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+@media(max-width:600px){
+  .dashboard{grid-template-columns:1fr 1fr}
+  .card-dates{grid-template-columns:1fr}
+  .header-top{flex-direction:column}
+}
+</style>
+</head>
+<body>
+<div class="scanline"></div>
+<div class="wrap" id="app">
+  <div class="loading">Connecting<span class="loading-dot">.</span><span class="loading-dot">.</span><span class="loading-dot">.</span></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h2 id="modal-title">Confirm</h2>
+    <p id="modal-msg"></p>
+    <div id="modal-fields"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-accent" id="modal-confirm">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Supabase config ──────────────────────────────────────────────
+const SUPABASE_URL = 'https://lhbihyzlqfwaeoldxebh.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxoYmloeXpscWZ3YWVvbGR4ZWJoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0OTQ2NDcsImV4cCI6MjA5MDA3MDY0N30.AhVakw6z8XjNUP9u2ye6UkDWRL9obvinVd6z__If7vY';
+const STORAGE_KEY  = 'wgu_tracker_v1';
+
+// ── Supabase helpers ─────────────────────────────────────────────
+async function dbGet(key) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/tracker_data?key=eq.${key}&select=value`, {
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+  });
+  if (!res.ok) throw new Error('GET failed');
+  const rows = await res.json();
+  return rows.length ? JSON.parse(rows[0].value) : null;
+}
+
+async function dbSet(key, value) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/tracker_data`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      Prefer: 'resolution=merge-duplicates'
+    },
+    body: JSON.stringify({ key, value: JSON.stringify(value), updated_at: new Date().toISOString() })
+  });
+  if (!res.ok) throw new Error('SET failed');
+}
+
+async function dbDelete(key) {
+  await fetch(`${SUPABASE_URL}/rest/v1/tracker_data?key=eq.${key}`, {
+    method: 'DELETE',
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+  });
+}
+
+// ── Course definitions ───────────────────────────────────────────
+const COURSES = [
+  {id:'D829',name:'Digital Forensics in Cybersecurity',code:'D829',cert:false},
+  {id:'C845',name:'Information Systems Security',code:'C845',cert:false},
+  {id:'D830',name:'Introduction to Cryptography',code:'D830',cert:false},
+  {id:'D832',name:'Managing Information Security',code:'D832',cert:false},
+  {id:'D281',name:'Linux Foundations',code:'D281',cert:false},
+  {id:'D426',name:'Data Management Foundations',code:'D426',cert:false},
+  {id:'D492',name:'Data Analytics Applications',code:'D492',cert:false},
+  {id:'D385',name:'Software Security and Testing',code:'D385',cert:false},
+  {id:'D831',name:'Introduction to AI and Security',code:'D831',cert:false},
+  {id:'D340',name:'Cyber Defense and Countermeasures',code:'D340',cert:true,certName:'CySA+'},
+  {id:'D332',name:'Penetration Testing and Vulnerability Analysis',code:'D332',cert:true,certName:'Pentest+'},
+];
+
+// ── App state ────────────────────────────────────────────────────
+let state = null;
+let expandedCards = new Set();
+let addingMilestone = new Set();
+let saveTimer = null;
+let syncStatus = 'idle'; // idle | syncing | error
+
+function setSyncStatus(s) {
+  syncStatus = s;
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  if (!dot || !lbl) return;
+  dot.className = 'sync-dot' + (s === 'syncing' ? ' syncing' : s === 'error' ? ' error' : '');
+  lbl.textContent = s === 'syncing' ? 'Saving...' : s === 'error' ? 'Sync error' : 'Saved';
+}
+
+function showToast(msg, type='', dur=2400) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' ' + type : '');
+  setTimeout(() => t.className = 'toast', dur);
+}
+
+// ── Persistence ──────────────────────────────────────────────────
+function schedSave() {
+  clearTimeout(saveTimer);
+  setSyncStatus('syncing');
+  saveTimer = setTimeout(async () => {
+    try {
+      await dbSet(STORAGE_KEY, state);
+      setSyncStatus('idle');
+    } catch(e) {
+      setSyncStatus('error');
+      showToast('Sync failed — check connection', 'error');
+    }
+  }, 800);
+}
+
+// ── Utilities ────────────────────────────────────────────────────
+function daysFromToday(dateStr) {
+  if (!dateStr) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const target = new Date(dateStr + 'T00:00:00');
+  return Math.ceil((target - today) / 86400000);
+}
+
+function formatDate(str) {
+  if (!str) return '—';
+  return new Date(str + 'T12:00:00').toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'});
+}
+
+function getCoursePct(cid) {
+  const ms = state.milestones[cid] || [];
+  if (!ms.length) return 0;
+  return Math.round(ms.filter(m => m.done).length / ms.length * 100);
+}
+
+function getActiveIdx() {
+  return COURSES.findIndex(c => state.status[c.id] === 'in-progress');
+}
+
+function getCompletedCount() {
+  return COURSES.filter(c => state.status[c.id] === 'complete').length;
+}
+
+function totalDaysLeft() {
+  return state.endDate ? daysFromToday(state.endDate) : null;
+}
+
+function initState(name, startDate, endDate) {
+  state = { name, startDate, endDate, status:{}, dates:{}, milestones:{}, notes:{}, completionDates:{} };
+  COURSES.forEach(c => {
+    state.status[c.id] = 'not-started';
+    state.milestones[c.id] = [];
+    state.notes[c.id] = '';
+    state.dates[c.id] = {start:'', end:''};
+  });
+}
+
+function ensureStateIntegrity() {
+  COURSES.forEach(c => {
+    if (!state.milestones[c.id]) state.milestones[c.id] = [];
+    if (!state.dates[c.id]) state.dates[c.id] = {start:'', end:''};
+    if (!state.notes[c.id]) state.notes[c.id] = '';
+    if (!state.status[c.id]) state.status[c.id] = 'not-started';
+  });
+}
+
+// ── Modal ────────────────────────────────────────────────────────
+let modalCb = null;
+function openModal(title, msg, fields, confirmLabel, cb) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-msg').textContent = msg;
+  document.getElementById('modal-confirm').textContent = confirmLabel || 'Confirm';
+  const fc = document.getElementById('modal-fields'); fc.innerHTML = '';
+  (fields||[]).forEach(f => {
+    const d = document.createElement('div'); d.className = 'modal-field';
+    d.innerHTML = `<label>${f.label}</label><input type="${f.type||'text'}" id="mf_${f.key}" placeholder="${f.placeholder||''}" value="${f.value||''}">`;
+    fc.appendChild(d);
+  });
+  modalCb = cb;
+  document.getElementById('modal').classList.add('open');
+  setTimeout(() => { const first = fc.querySelector('input'); if(first) first.focus(); }, 80);
+}
+function closeModal() { document.getElementById('modal').classList.remove('open'); modalCb = null; }
+document.getElementById('modal-confirm').onclick = () => {
+  if (modalCb) {
+    const inputs = {};
+    document.querySelectorAll('#modal-fields input').forEach(i => inputs[i.id.replace('mf_','')] = i.value);
+    modalCb(inputs);
+  }
+  closeModal();
+};
+document.getElementById('modal').addEventListener('click', e => { if(e.target === document.getElementById('modal')) closeModal(); });
+
+// ── Render ───────────────────────────────────────────────────────
+function render() {
+  const app = document.getElementById('app');
+  if (!state) { app.innerHTML = renderSetup(); return; }
+  app.innerHTML = renderHeader() + renderDashboard() + renderCurrentHighlight() + renderCourseList();
+}
+
+function renderHeader() {
+  return `<div class="header">
+    <div class="header-top">
+      <div class="title-block">
+        <h1>// WGU IA Progress Tracker</h1>
+        <p>${state.name} · Started ${formatDate(state.startDate)}</p>
+      </div>
+      <div class="header-actions">
+        <div class="sync-indicator"><div class="sync-dot" id="sync-dot"></div><span id="sync-label">Saved</span></div>
+        <button class="btn" onclick="resetTracker()">Reset</button>
+        <button class="btn btn-accent" onclick="editPlanDates()">Edit Dates</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderSetup() {
+  const today = new Date().toISOString().slice(0,10);
+  const sixMo = new Date(Date.now() + 183*86400000).toISOString().slice(0,10);
+  return `<div class="setup-screen"><div class="setup-card">
+    <div class="mono-tag">WGU // IA Tracker</div>
+    <h2>Set up your tracker</h2>
+    <p>Enter your plan dates to begin tracking all 11 courses in your Information Assurance path.</p>
+    <div class="setup-field"><label>Your name</label><input id="setup-name" type="text" placeholder="Clayton"></div>
+    <div class="setup-field"><label>Plan start date</label><input id="setup-start" type="date" value="${today}"></div>
+    <div class="setup-field"><label>Target end date (~6 months)</label><input id="setup-end" type="date" value="${sixMo}"></div>
+    <button class="btn btn-accent btn-setup" onclick="setupTracker()">Initialize Tracker →</button>
+  </div></div>`;
+}
+
+async function setupTracker() {
+  const name  = document.getElementById('setup-name').value.trim() || 'WGU Student';
+  const start = document.getElementById('setup-start').value;
+  const end   = document.getElementById('setup-end').value;
+  if (!start || !end) { showToast('Please set both dates', 'error'); return; }
+  initState(name, start, end);
+  await dbSet(STORAGE_KEY, state);
+  showToast('Tracker initialized!');
+  render();
+}
+
+function renderDashboard() {
+  const completed = getCompletedCount();
+  const total = COURSES.length;
+  const pct = Math.round(completed / total * 100);
+  const dLeft = totalDaysLeft();
+  const activeIdx = getActiveIdx();
+  const activeCourse = activeIdx >= 0 ? COURSES[activeIdx] : null;
+  const daysLeftCourse = activeCourse && state.dates[activeCourse.id]?.end ? daysFromToday(state.dates[activeCourse.id].end) : null;
+  const overallMs = COURSES.reduce((a,c) => {
+    const ms = state.milestones[c.id] || [];
+    return { done: a.done + ms.filter(m=>m.done).length, total: a.total + ms.length };
+  }, {done:0, total:0});
+  const taskPct = overallMs.total ? Math.round(overallMs.done / overallMs.total * 100) : 0;
+  const dots = COURSES.map(c => {
+    const s = state.status[c.id];
+    return `<div class="course-dot ${s==='complete'?'done':s==='in-progress'?'active':''}" title="${c.code}: ${c.name}"></div>`;
+  }).join('');
+
+  return `<div class="dashboard">
+    <div class="stat-card">
+      <div class="stat-label">Courses Done</div>
+      <div class="stat-value stat-accent">${completed}<span style="font-size:16px;color:var(--text3)">/${total}</span></div>
+      <div class="stat-sub">${pct}% complete</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Days Remaining</div>
+      <div class="stat-value ${dLeft!==null&&dLeft<30?'stat-amber':''}">${dLeft !== null ? dLeft : '—'}</div>
+      <div class="stat-sub">Target: ${formatDate(state.endDate)}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Current Course Days</div>
+      <div class="stat-value stat-blue">${daysLeftCourse !== null ? daysLeftCourse : '—'}</div>
+      <div class="stat-sub">${activeCourse ? activeCourse.code : 'No active course'}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Tasks Complete</div>
+      <div class="stat-value">${overallMs.done}<span style="font-size:16px;color:var(--text3)">/${overallMs.total}</span></div>
+      <div class="stat-sub">${taskPct}% of all milestones</div>
+    </div>
+  </div>
+  <div class="overall-bar-wrap">
+    <div class="overall-bar-header">
+      <span class="overall-bar-label">Overall Progress</span>
+      <span class="overall-bar-pct">${pct}%</span>
+    </div>
+    <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+    <div class="course-dots">${dots}</div>
+  </div>`;
+}
+
+function renderCurrentHighlight() {
+  const idx = getActiveIdx();
+  if (idx < 0) return '';
+  const c = COURSES[idx];
+  const d = state.dates[c.id] || {};
+  const dLeft = d.end ? daysFromToday(d.end) : null;
+  const pct = getCoursePct(c.id);
+  const ms = state.milestones[c.id] || [];
+  return `<div class="current-highlight visible">
+    <div class="current-tag">▶ Active Course</div>
+    <div class="current-name">${c.name}</div>
+    <div class="current-code">${c.code}${c.cert ? ` · ${c.certName}` : ''}</div>
+    <div class="current-meta">
+      <div class="current-meta-item">Started: <span>${formatDate(d.start)}</span></div>
+      <div class="current-meta-item">Target End: <span>${formatDate(d.end)}</span></div>
+      <div class="current-meta-item">Days Left: <span>${dLeft !== null ? dLeft : 'not set'}</span></div>
+      <div class="current-meta-item">Milestones: <span>${ms.filter(m=>m.done).length}/${ms.length} (${pct}%)</span></div>
+    </div>
+  </div>`;
+}
+
+function renderCourseList() {
+  const active = COURSES.filter(c => state.status[c.id] !== 'complete');
+  const done   = COURSES.filter(c => state.status[c.id] === 'complete');
+  let html = `<div class="section-header"><span class="section-title">Courses</span><div class="section-line"></div></div>`;
+  html += `<div class="course-list">${active.map(c => renderCard(c)).join('')}</div>`;
+  if (done.length) {
+    html += `<div class="completed-section">
+      <div class="section-header"><span class="section-title">Completed</span><div class="section-line"></div></div>
+      <div class="course-list">${done.map(c => renderCard(c)).join('')}</div>
+    </div>`;
+  }
+  return html;
+}
+
+function renderCard(c) {
+  const s   = state.status[c.id];
+  const d   = state.dates[c.id] || {};
+  const ms  = state.milestones[c.id] || [];
+  const pct = getCoursePct(c.id);
+  const dLeft = d.end ? daysFromToday(d.end) : null;
+  const isOpen = expandedCards.has(c.id);
+  const isAddingMs = addingMilestone.has(c.id);
+  const globalIdx = COURSES.findIndex(x => x.id === c.id) + 1;
+
+  const badge = s === 'complete'
+    ? `<span class="badge badge-done">Complete</span>`
+    : s === 'in-progress'
+    ? `<span class="badge badge-ip">In Progress</span>`
+    : `<span class="badge badge-ns">Not Started</span>`;
+  const certBadge = c.cert ? `<span class="badge badge-cert">${c.certName}</span>` : '';
+
+  let daysHtml = '';
+  if (s === 'complete' && state.completionDates[c.id]) {
+    daysHtml = `<span class="card-days">Done ${formatDate(state.completionDates[c.id])}</span>`;
+  } else if (dLeft !== null) {
+    const cls = dLeft < 7 ? 'urgent' : dLeft < 14 ? 'soon' : '';
+    daysHtml = `<span class="card-days ${cls}">${dLeft}d left</span>`;
+  }
+
+  let bodyHtml = '';
+  if (isOpen) {
+    const msRows = ms.map((m,i) => `
+      <div class="milestone-item">
+        <input type="checkbox" class="milestone-check" ${m.done?'checked':''} onchange="toggleMilestone('${c.id}',${i},this.checked)">
+        <span class="milestone-text ${m.done?'checked':''}">${m.text}</span>
+        <button class="milestone-edit" onclick="deleteMilestone('${c.id}',${i})">✕</button>
+      </div>`).join('');
+
+    const addRow = isAddingMs ? `
+      <div class="add-milestone-row">
+        <input type="text" id="ms-input-${c.id}" placeholder="e.g. Complete pre-assessment..." onkeydown="msKeydown(event,'${c.id}')">
+        <button class="btn btn-small btn-accent" onclick="addMilestone('${c.id}')">Add</button>
+        <button class="btn btn-small" onclick="cancelAddMs('${c.id}')">Cancel</button>
+      </div>` : '';
+
+    const completionLine = s === 'complete' && state.completionDates[c.id]
+      ? `<div class="completion-date">✓ Completed ${formatDate(state.completionDates[c.id])}</div>` : '';
+
+    const actionBtn = s === 'not-started'
+      ? `<button class="btn btn-small btn-accent" onclick="setCourseStatus('${c.id}','in-progress')">▶ Start Course</button>`
+      : s === 'in-progress'
+      ? `<button class="btn btn-small btn-accent" onclick="setCourseStatus('${c.id}','complete')">✓ Mark Complete</button>`
+      : `<button class="btn btn-small" onclick="setCourseStatus('${c.id}','in-progress')">↩ Reopen</button>`;
+
+    bodyHtml = `<div class="card-body open"><div class="card-body-inner">
+      <div class="card-dates">
+        <div class="date-field">
+          <label>Start Date</label>
+          <input type="date" value="${d.start||''}" onchange="setDate('${c.id}','start',this.value)">
+          ${completionLine}
+        </div>
+        <div class="date-field">
+          <label>Target End Date</label>
+          <input type="date" value="${d.end||''}" onchange="setDate('${c.id}','end',this.value)">
+        </div>
+      </div>
+      <div class="milestones-header">
+        <span class="milestones-label">Milestones (${ms.filter(m=>m.done).length}/${ms.length})</span>
+        <button class="add-milestone-btn" onclick="startAddMs('${c.id}')">+ Add milestone</button>
+      </div>
+      <div class="milestone-list">${msRows}</div>
+      ${addRow}
+      <div class="card-notes">
+        <label class="notes-label">Notes</label>
+        <textarea class="notes-input" placeholder="Study resources, links, reminders..." onchange="setNotes('${c.id}',this.value)">${state.notes[c.id]||''}</textarea>
+      </div>
+      <div class="card-actions">${actionBtn}</div>
+    </div></div>`;
+  }
+
+  return `<div class="course-card ${s==='in-progress'?'active-course':''} ${s==='complete'?'complete-course':''}" id="card_${c.id}">
+    <div class="card-header" onclick="toggleCard('${c.id}')">
+      <span class="card-num">${String(globalIdx).padStart(2,'0')}</span>
+      <div class="card-info">
+        <div class="card-name">${c.name}</div>
+        <div class="card-code">${c.code}</div>
+      </div>
+      <div class="card-right">${badge}${certBadge}${daysHtml}<span class="card-chevron ${isOpen?'open':''}">▼</span></div>
+    </div>
+    <div class="card-progress-bar"><div class="card-progress-fill" style="width:${pct}%"></div></div>
+    ${bodyHtml}
+  </div>`;
+}
+
+// ── Actions ──────────────────────────────────────────────────────
+function toggleCard(cid) {
+  expandedCards.has(cid) ? expandedCards.delete(cid) : expandedCards.add(cid);
+  render();
+  if (expandedCards.has(cid)) {
+    setTimeout(() => { const el = document.getElementById(`card_${cid}`); if(el) el.scrollIntoView({behavior:'smooth',block:'nearest'}); }, 60);
+  }
+}
+
+function setDate(cid, type, val) {
+  if (!state.dates[cid]) state.dates[cid] = {};
+  state.dates[cid][type] = val;
+  schedSave(); render();
+}
+
+function setNotes(cid, val) {
+  state.notes[cid] = val;
+  schedSave();
+}
+
+function toggleMilestone(cid, idx, checked) {
+  state.milestones[cid][idx].done = checked;
+  schedSave(); render();
+}
+
+function deleteMilestone(cid, idx) {
+  state.milestones[cid].splice(idx, 1);
+  schedSave(); render();
+}
+
+function startAddMs(cid) {
+  addingMilestone.add(cid);
+  render();
+  setTimeout(() => { const inp = document.getElementById(`ms-input-${cid}`); if(inp) inp.focus(); }, 60);
+}
+
+function cancelAddMs(cid) { addingMilestone.delete(cid); render(); }
+
+function msKeydown(e, cid) {
+  if (e.key === 'Enter')  addMilestone(cid);
+  if (e.key === 'Escape') cancelAddMs(cid);
+}
+
+function addMilestone(cid) {
+  const inp = document.getElementById(`ms-input-${cid}`);
+  if (!inp) return;
+  const val = inp.value.trim();
+  if (!val) { showToast('Enter a milestone name', 'error'); return; }
+  state.milestones[cid].push({text: val, done: false});
+  addingMilestone.delete(cid);
+  schedSave(); showToast('Milestone added'); render();
+}
+
+function setCourseStatus(cid, status) {
+  const course = COURSES.find(c => c.id === cid);
+  if (status === 'complete') {
+    openModal(
+      'Mark as Complete',
+      `Confirm completion date for ${course?.name}.`,
+      [{key:'date', label:'Completion Date', type:'date', value: new Date().toISOString().slice(0,10)}],
+      'Mark Complete',
+      (inputs) => {
+        state.status[cid] = 'complete';
+        state.completionDates[cid] = inputs.date || new Date().toISOString().slice(0,10);
+        schedSave(); showToast(`${cid} complete! 🎉`); render();
+      }
+    );
+  } else {
+    state.status[cid] = status;
+    if (status === 'in-progress') {
+      if (!state.dates[cid]) state.dates[cid] = {};
+      if (!state.dates[cid].start) state.dates[cid].start = new Date().toISOString().slice(0,10);
+      delete state.completionDates[cid];
+    }
+    schedSave(); showToast(status === 'in-progress' ? `${cid} started!` : `${cid} updated`); render();
+  }
+}
+
+function editPlanDates() {
+  openModal(
+    'Edit Plan Dates',
+    'Update your name or overall 6-month plan dates.',
+    [
+      {key:'name',  label:'Your Name',       value: state.name},
+      {key:'start', label:'Start Date',      type:'date', value: state.startDate},
+      {key:'end',   label:'Target End Date', type:'date', value: state.endDate}
+    ],
+    'Save',
+    (inputs) => {
+      if (inputs.name)  state.name      = inputs.name;
+      if (inputs.start) state.startDate = inputs.start;
+      if (inputs.end)   state.endDate   = inputs.end;
+      schedSave(); showToast('Dates updated'); render();
+    }
+  );
+}
+
+function resetTracker() {
+  openModal(
+    'Reset Tracker',
+    'This will permanently delete all progress from the database. This cannot be undone.',
+    [],
+    'Reset Everything',
+    async () => {
+      try { await dbDelete(STORAGE_KEY); } catch(e) {}
+      state = null; expandedCards.clear(); addingMilestone.clear();
+      showToast('Tracker reset'); render();
+    }
+  );
+}
+
+// ── Boot ─────────────────────────────────────────────────────────
+(async () => {
+  try {
+    const saved = await dbGet(STORAGE_KEY);
+    if (saved && saved.startDate) {
+      state = saved;
+      ensureStateIntegrity();
+    }
+  } catch(e) {
+    showToast('Could not reach database — check connection', 'error', 4000);
+  }
+  render();
+})();
+</script>
+</body>
+</html>
